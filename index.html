@@ -20,7 +20,7 @@
 <label>دسته‌بندی<select id="category" required></select></label><label>عنوان<input id="title" required maxlength="90"></label><label class="full">توضیحات<textarea id="description" rows="3"></textarea></label><label>قیمت<input id="price" placeholder="قیمت توافقی"></label><label>راه تماس<input id="contact"></label><label>استان<input id="provinceInput"></label><label>شهر<input id="cityInput"></label><label>محله<input id="district"></label><label>آدرس<input id="address"></label><label class="full">لینک نقشه<input id="map" type="url"></label><label class="full">تصاویر<input id="images" type="file" accept="image/*" multiple></label></div><p class="small">آگهی جدید پس از ثبت در انتظار تأیید مدیر قرار می‌گیرد. هنگام ویرایش آگهی نیز دوباره برای تأیید ارسال می‌شود.</p><button class="primary" type="submit">ذخیره و ارسال برای تأیید</button></form></div></div>
 <script>
 // مقادیر اتصال را از Supabase > Project Settings > API وارد کنید.
-const SUPABASE_URL='https://ekdsvlgrcuziagnbzoju.supabase.co/rest/v1/';
+const SUPABASE_URL='https://ekdsvlgrcuziagnbzoju.supabase.co';
 const SUPABASE_KEY='sb_publishable_s0Ve02LlI95I78zas4yXNw_1vaIEnfP';
 const READY=!SUPABASE_URL.startsWith('PASTE_')&&!SUPABASE_KEY.startsWith('PASTE_');
 const client=READY?supabase.createClient(SUPABASE_URL,SUPABASE_KEY):null;
