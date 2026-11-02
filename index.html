@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>بازارچه ایتا</title>
+<style>
+:root{--ink:#17212b;--muted:#687782;--brand:#168b72;--bg:#f3f6f7;--line:#e4eaec;--card:#fff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Tahoma,Arial,sans-serif}
+header{background:linear-gradient(135deg,#087e69,#20a487);color:white;padding:22px 16px 26px}
+.wrap{max-width:900px;margin:auto;padding:0 14px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px}.brand{font-size:22px;font-weight:800}.sub{opacity:.9;font-size:12px;margin-top:7px}
+button,input,select,textarea{font:inherit}button{border:0;border-radius:12px;padding:11px 15px;cursor:pointer;font-weight:700}
+.primary{background:var(--brand);color:white}.light{background:#e7f4f0;color:#087e69}.ghost{background:white;color:#087e69}
+main{margin-top:-12px}.searchbox{background:white;padding:13px;border-radius:16px;box-shadow:0 6px 20px #102a3210;display:grid;grid-template-columns:1fr 1fr;gap:9px}
+input,select,textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px;background:white;color:var(--ink);min-width:0}
+.searchbox input{grid-column:1/-1}.cats{display:flex;gap:8px;overflow:auto;padding:15px 1px;scrollbar-width:thin}
+.cat{white-space:nowrap;background:white;border:1px solid var(--line);color:#45545e;padding:9px 13px;border-radius:30px;font-size:13px}.cat.active{background:#dff3ed;color:#087e69;border-color:#a8dfd0}
+.section{display:flex;align-items:center;justify-content:space-between;margin:8px 0 12px}.section h2{font-size:17px;margin:0}.count{font-size:12px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.ad{background:white;border:1px solid var(--line);border-radius:15px;overflow:hidden}.photo{height:145px;background:#e8eeee;display:flex;align-items:center;justify-content:center;color:#84949a;font-size:13px;overflow:hidden}.photo img{width:100%;height:100%;object-fit:cover}.adbody{padding:12px}.ad h3{font-size:15px;margin:0 0 8px}.price{font-weight:800;color:#087e69;font-size:14px}.meta{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.8}.tag{display:inline-block;background:#eef6f3;color:#087e69;border-radius:6px;padding:4px 7px;font-size:10px;margin-top:8px}
+.actions{display:flex;gap:7px;margin-top:10px}.actions button{font-size:11px;padding:8px;flex:1}
+.empty{background:white;border-radius:14px;padding:28px;text-align:center;color:var(--muted);grid-column:1/-1}
+footer{text-align:center;color:#87949a;font-size:11px;padding:24px}
+.modal{position:fixed;inset:0;background:#0c1c25a6;display:none;align-items:flex-end;justify-content:center;padding:12px;z-index:5}.modal.show{display:flex}.panel{background:white;border-radius:18px 18px 12px 12px;padding:18px;width:min(620px,100%);max-height:90vh;overflow:auto}.panel h2{font-size:18px;margin:0 0 14px}.fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field{display:flex;flex-direction:column;gap:6px;font-size:12px;color:#50606a}.field.full{grid-column:1/-1}.form-actions{display:flex;gap:8px;margin-top:15px}.form-actions button{flex:1}.close{float:left;background:#f0f3f4;color:#50606a}
+.notice{background:#fff7df;border:1px solid #f1dfa7;color:#765b14;padding:11px;border-radius:10px;font-size:11px;line-height:1.8;margin:14px 0}
+@media(min-width:700px){.modal{align-items:center}.photo{height:175px}}@media(max-width:420px){.grid{grid-template-columns:1fr 1fr}.photo{height:115px}.fields{grid-template-columns:1fr}.field.full{grid-column:auto}.searchbox{grid-template-columns:1fr}.searchbox input{grid-column:auto}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+ <div class="top"><div><div class="brand">بازارچهٔ ایتا</div><div class="sub">آگهی‌های محلی؛ سریع، ساده و دسته‌بندی‌شده</div></div><button class="ghost" id="addTop">＋ ثبت آگهی</button></div>
+</div></header>
+<main class="wrap">
+ <div class="searchbox">
+  <input id="q" placeholder="جست‌وجو در عنوان و توضیحات…">
+  <select id="province"><option value="">همهٔ استان‌ها</option></select>
+  <select id="city"><option value="">همهٔ شهرها</option></select>
+ </div>
+ <div class="cats" id="cats"></div>
+ <div class="section"><h2 id="heading">همهٔ آگهی‌ها</h2><span class="count" id="count"></span></div>
+ <div class="grid" id="ads"></div>
+ <footer>پیش‌نمایش اولیهٔ بازارچه ایتا</footer>
+</main>
+<div class="modal" id="modal"><div class="panel">
+ <button class="close" id="close">بستن ×</button><h2>ثبت آگهی جدید</h2>
+ <form id="form"><div class="fields">
+  <label class="field">دسته‌بندی<select id="category" required></select></label>
+  <label class="field">عنوان آگهی<input id="title" required maxlength="90" placeholder="مثلاً فروش خودروی…"></label>
+  <label class="field full">توضیحات<textarea id="description" rows="3" placeholder="مشخصات و توضیحات آگهی"></textarea></label>
+  <label class="field">قیمت<input id="price" placeholder="مثلاً ۸۵۰ میلیون تومان"></label>
+  <label class="field">راه ارتباطی<input id="contact" placeholder="شماره تماس یا شناسه"></label>
+  <label class="field">استان<input id="pname" placeholder="نام استان"></label>
+  <label class="field">شهر<input id="cname" placeholder="نام شهر"></label>
+  <label class="field">محله / منطقه<input id="district" placeholder="اختیاری"></label>
+  <label class="field">آدرس متنی<input id="address" placeholder="اختیاری"></label>
+  <label class="field full">لینک موقعیت روی نقشه<input id="map" type="url" placeholder="https://maps.google.com/…"></label>
+  <label class="field full">تصاویر (چند تصویر مجاز است)<input id="images" type="file" accept="image/*" multiple></label>
+ </div>
+ <div class="notice">این نسخه نمایشی است: آگهی‌ها فقط در همین مرورگر ذخیره می‌شوند. برای استفاده واقعی باید پایگاه داده، فضای نگهداری تصاویر و اتصال رسمی ایتا راه‌اندازی شود.</div>
+ <div class="form-actions"><button class="primary" type="submit">ذخیرهٔ آگهی</button><button type="button" class="light" id="cancel">انصراف</button></div>
+ </form>
+</div></div>
+<script>
+const defaultCats=['ماشین','موتورسیکلت','لوازم خانه','موبایل','املاک','ابزار آلات','استخدام','سایر'];
+const seed=[
+ {id:1,cat:'ماشین',title:'نمونه آگهی فروش خودرو',desc:'خودرو تمیز، بازدید با هماهنگی',price:'توافقی',province:'تهران',city:'تهران',district:'مرکز شهر',contact:'—'},
+ {id:2,cat:'املاک',title:'نمونه آگهی آپارتمان',desc:'واحد مسکونی؛ اطلاعات بیشتر با تماس',price:'قابل مذاکره',province:'البرز',city:'کرج',district:'—',contact:'—'},
+ {id:3,cat:'موبایل',title:'نمونه آگهی تلفن همراه',desc:'نمونهٔ نمایشی برای نشان دادن کارت آگهی',price:'۱۲ میلیون تومان',province:'تهران',city:'تهران',district:'—',contact:'—'}
+];
+let ads=JSON.parse(localStorage.getItem('eitaa_ads')||'null')||seed;
+let cats=JSON.parse(localStorage.getItem('eitaa_cats')||'null')||defaultCats;
+let selected='همه';
+const $=id=>document.getElementById(id);
+function save(){localStorage.setItem('eitaa_ads',JSON.stringify(ads));localStorage.setItem('eitaa_cats',JSON.stringify(cats))}
+function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function renderCats(){
+ $('cats').innerHTML=['همه',...cats].map(c=>`<button class="cat ${selected===c?'active':''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('');
+ $('category').innerHTML=cats.map(c=>`<option>${esc(c)}</option>`).join('');
+ document.querySelectorAll('[data-cat]').forEach(b=>b.onclick=()=>{selected=b.dataset.cat;render()});
+}
+function render(){
+ renderCats();
+ const q=$('q').value.trim().toLowerCase(),p=$('province').value,city=$('city').value;
+ const filtered=ads.filter(a=>(selected==='همه'||a.cat===selected)&&(!q||(a.title+' '+a.desc).toLowerCase().includes(q))&&(!p||a.province===p)&&(!city||a.city===city));
+ $('heading').textContent=selected==='همه'?'همهٔ آگهی‌ها':'آگهی‌های '+selected;
+ $('count').textContent=filtered.length+' آگهی';
+ $('ads').innerHTML=filtered.length?filtered.map(a=>`<article class="ad"><div class="photo">${a.images&&a.images[0]?`<img src="${a.images[0]}" alt="">`:'تصویر آگهی'}</div><div class="adbody"><h3>${esc(a.title)}</h3><div class="price">${esc(a.price||'قیمت توافقی')}</div><div class="meta">${esc(a.province||'')} ${esc(a.city||'')} ${esc(a.district||'')}<br>${esc(a.desc||'')}</div><span class="tag">#${esc(a.cat.replaceAll(' ','_'))}</span><div class="actions">${a.map?`<button class="light" onclick="window.open('${esc(a.map)}','_blank')">مشاهده موقعیت</button>`:''}<button class="light" onclick="details(${a.id})">جزئیات</button></div></div></article>`).join(''):'<div class="empty">آگهی‌ای با این مشخصات پیدا نشد.</div>';
+ const provinces=[...new Set(ads.map(a=>a.province).filter(Boolean))],cities=[...new Set(ads.filter(a=>!p||a.province===p).map(a=>a.city).filter(Boolean))];
+ const oldp=$('province').value,oldc=$('city').value;
+ $('province').innerHTML='<option value="">همهٔ استان‌ها</option>'+provinces.map(x=>`<option>${esc(x)}</option>`).join('');
+ $('city').innerHTML='<option value="">همهٔ شهرها</option>'+cities.map(x=>`<option>${esc(x)}</option>`).join('');
+ $('province').value=provinces.includes(oldp)?oldp:'';$('city').value=cities.includes(oldc)?oldc:'';
+}
+window.details=id=>{const a=ads.find(x=>x.id===id);alert(`${a.title}\n\n${a.desc||''}\nقیمت: ${a.price||'توافقی'}\nتماس: ${a.contact||'ثبت نشده'}\nموقعیت: ${[a.province,a.city,a.district,a.address].filter(Boolean).join('، ')}`)}
+function open(){ $('modal').classList.add('show') }function close(){ $('modal').classList.remove('show') }
+$('addTop').onclick=open;$('close').onclick=close;$('cancel').onclick=close;
+$('q').oninput=render;$('province').onchange=render;$('city').onchange=render;
+$('form').onsubmit=async e=>{
+ e.preventDefault();
+ const files=[...$('images').files];
+ const imgs=await Promise.all(files.map(f=>new Promise(resolve=>{const r=new FileReader();r.onload=()=>resolve(r.result);r.readAsDataURL(f)})));
+ const a={id:Date.now(),cat:$('category').value,title:$('title').value,desc:$('description').value,price:$('price').value,contact:$('contact').value,province:$('pname').value,city:$('cname').value,district:$('district').value,address:$('address').value,map:$('map').value,images:imgs};
+ ads.unshift(a);save();$('form').reset();close();render();
+};
+render();
+</script>
+</body></html>
