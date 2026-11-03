@@ -1162,31 +1162,67 @@ window.editAd=id=>{
   $('modal').classList.add('show');
 };
 
-// حذف آگهی
-window.deleteAd=async id=>{
 
-  const a=ads.find(x=>String(x.id)===String(id));
+// حذف آگهی به همراه تصاویر آن از Storage
+window.deleteAd = async id => {
+  const a = ads.find(x => String(x.id) === String(id));
 
-  if(!a)return;
+  if (!a) return;
 
-  if(!(a.user_id===currentUser?.id||isAdmin)){
+  if (!(a.user_id === currentUser?.id || isAdmin)) {
     return msg('اجازهٔ حذف این آگهی را ندارید.');
   }
 
-  if(!confirm('آگهی حذف شود؟'))return;
+  if (!confirm('آگهی و تصاویر آن حذف شوند؟')) return;
 
-  const {error}=await client
-    .from('ads')
-    .delete()
-    .eq('id',id);
+  const button = document.querySelector(
+    `[data-action="delete"][data-id="${CSS.escape(String(id))}"]`
+  );
 
-  if(error){
-    msg(error.message);
-    return;
+  if (button) button.disabled = true;
+
+  try {
+    const imagePaths = Array.isArray(a.image_urls)
+      ? [...new Set(a.image_urls.filter(Boolean))]
+      : [];
+
+    // ابتدا حذف تصاویر از Storage
+    if (imagePaths.length) {
+      const { error: storageError } = await client
+        .storage
+        .from('ad-images')
+        .remove(imagePaths);
+
+      if (storageError) {
+        throw new Error(
+          'حذف تصاویر ناموفق بود؛ آگهی حذف نشد. ' +
+          storageError.message
+        );
+      }
+    }
+
+    // پس از حذف موفق تصاویر، حذف رکورد آگهی
+    const { error: adError } = await client
+      .from('ads')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', a.user_id);
+
+    if (adError) throw adError;
+
+    await loadAds();
+
+    if (isAdmin) await loadPending();
+
+    msg('آگهی و تصاویر آن با موفقیت حذف شدند.');
+
+  } catch (err) {
+    msg('خطا در حذف: ' + err.message);
+  } finally {
+    if (button) button.disabled = false;
   }
-
-  await loadAds();
 };
+
 
 // تأیید آگهی
 window.approveAd=async id=>{
