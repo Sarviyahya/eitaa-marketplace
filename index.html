@@ -38,6 +38,9 @@ header{
 .brand-copy{direction:rtl;min-width:0}
 .marketplace-logo{width:80px;height:80px;object-fit:contain;border-radius:12px;background:#ffffff30;display:none;flex:none;border:1px solid #ffffff66}
 .marketplace-logo.visible{display:block}
+.site-views{font-size:11px;color:#eafff8;margin-top:6px;display:flex;align-items:center;gap:5px}
+.ad-views{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--muted);white-space:nowrap}
+.ad-views svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.8}
 .sub{font-size:12px;margin-top:7px}
 button,input,select,textarea{font:inherit}
 button{
@@ -238,6 +241,19 @@ input,select,textarea{
 }
 .admin-login-head h3{margin:0}
 
+
+/* نمایشگر بزرگ تصاویر آگهی */
+.image-viewer{position:fixed;inset:0;z-index:100;background:#071018ed;display:none;align-items:center;justify-content:center;padding:22px}
+.image-viewer.show{display:flex}
+.image-viewer-content{position:relative;width:min(1100px,100%);height:min(92vh,900px);display:flex;align-items:center;justify-content:center}
+.image-viewer-img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;box-shadow:0 8px 35px #0008}
+.image-viewer-btn{position:absolute;border:1px solid #ffffff66;background:#ffffff25;color:white;backdrop-filter:blur(5px);border-radius:50%;width:48px;height:48px;font-size:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:2}
+.image-viewer-prev{left:12px}.image-viewer-next{right:12px}
+.image-viewer-close{top:8px;right:8px;font-size:25px}
+.image-viewer-count{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);color:white;background:#0008;padding:6px 12px;border-radius:20px;font-size:13px}
+.carousel-image{cursor:zoom-in}
+@media(max-width:600px){.image-viewer{padding:8px}.image-viewer-content{height:90vh}.image-viewer-btn{width:42px;height:42px}.image-viewer-prev{left:4px}.image-viewer-next{right:4px}}
+
 </style>
 </head>
 
@@ -251,6 +267,7 @@ input,select,textarea{
         <div class="brand-copy">
           <div class="brand" id="marketplaceBrand">بازارچهٔ ایتا</div>
           <div class="sub">آگهی‌های محلی؛ سریع، ساده و دسته‌بندی‌شده</div>
+          <div class="site-views" title="تعداد بازدیدهای سایت"><span aria-hidden="true">◉</span><span id="siteViews">۰ بازدید</span></div>
         </div>
       </div>
       <button class="ghost" id="addTop">＋ ثبت آگهی</button>
@@ -322,6 +339,17 @@ input,select,textarea{
     <input id="password" type="password" placeholder="گذرواژه"
            autocomplete="current-password">
     <button class="primary" id="signIn" type="button">ورود مدیر</button>
+  </div>
+</div>
+
+
+<div class="image-viewer" id="imageViewer" role="dialog" aria-modal="true" aria-label="نمایش تصاویر آگهی">
+  <div class="image-viewer-content">
+    <button class="image-viewer-btn image-viewer-close" id="imageViewerClose" type="button" aria-label="بستن">×</button>
+    <button class="image-viewer-btn image-viewer-prev" id="imageViewerPrev" type="button" aria-label="تصویر قبلی">‹</button>
+    <img class="image-viewer-img" id="imageViewerImage" alt="تصویر بزرگ آگهی">
+    <button class="image-viewer-btn image-viewer-next" id="imageViewerNext" type="button" aria-label="تصویر بعدی">›</button>
+    <div class="image-viewer-count" id="imageViewerCount"></div>
   </div>
 </div>
 
@@ -427,6 +455,8 @@ let authListenerRegistered=false;
 let marketplaceTitle='بازارچهٔ ایتا';
 let marketplaceLogoPath='';
 let slideshowSeconds=4;
+let siteViewCount=0;
+let adViewCounts={};
 const carouselTimers=new Map();
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({
@@ -457,6 +487,46 @@ function validMapUrl(value){
   }
 }
 
+// شمارنده‌های بازدید؛ هر مرورگر در هر نشست فقط یک‌بار شمرده می‌شود.
+function sessionHas(key){
+  try{return sessionStorage.getItem(key)==='1';}catch{return false;}
+}
+function markSession(key){
+  try{sessionStorage.setItem(key,'1');}catch{}
+}
+function formatCount(n){return Number(n||0).toLocaleString('fa-IR');}
+function showSiteViews(){
+  const el=$('siteViews');
+  if(el) el.textContent=formatCount(siteViewCount)+' بازدید';
+}
+async function loadViewCounts(){
+  const [{data:siteRows,error:siteError},{data:adRows,error:adError}]=await Promise.all([
+    client.from('marketplace_counters').select('value').eq('key','site_views').maybeSingle(),
+    client.from('ad_views').select('ad_id,view_count')
+  ]);
+  if(!siteError) siteViewCount=Number(siteRows?.value||0);
+  if(!adError){adViewCounts={};(adRows||[]).forEach(r=>{adViewCounts[String(r.ad_id)]=Number(r.view_count||0);});}
+  showSiteViews();
+}
+async function countSiteVisit(){
+  if(sessionHas('marketplace_site_visit')) return;
+  markSession('marketplace_site_visit');
+  const {data,error}=await client.rpc('increment_site_views');
+  if(!error && Number.isFinite(Number(data))) siteViewCount=Number(data);
+  else siteViewCount++;
+  showSiteViews();
+}
+async function countAdVisit(id){
+  const key='marketplace_ad_visit_'+String(id);
+  if(sessionHas(key)) return;
+  markSession(key);
+  const {data,error}=await client.rpc('increment_ad_views',{p_ad_id:id});
+  if(!error && Number.isFinite(Number(data))) adViewCounts[String(id)]=Number(data);
+  else adViewCounts[String(id)]=(adViewCounts[String(id)]||0)+1;
+  const el=document.querySelector(`[data-ad-views="${CSS.escape(String(id))}"]`);
+  if(el) el.textContent=formatCount(adViewCounts[String(id)]);
+}
+
 // شروع برنامه
 async function init(){
 
@@ -484,6 +554,8 @@ async function init(){
 
     await refreshAuth();
     await loadMarketplaceSettings();
+    await loadViewCounts();
+    await countSiteVisit();
     await loadCats();
     await loadAds();
 
@@ -797,9 +869,13 @@ async function render(){
             }
           </div>
 
-          <span class="small">
-            ${esc(a.categories?.name||'')}
-          </span>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:5px">
+            <span class="small">${esc(a.categories?.name||'')}</span>
+            <span class="ad-views" title="بازدیدهای این آگهی">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+              <span data-ad-views="${esc(a.id)}">${formatCount(adViewCounts[String(a.id)]||0)}</span>
+            </span>
+          </div>
 
           <div class="actions">
 
@@ -902,6 +978,7 @@ async function render(){
 
 // جزئیات آگهی
 window.details=id=>{
+  countAdVisit(id);
 
   const a=ads.find(x=>String(x.id)===String(id));
 
@@ -1351,6 +1428,48 @@ $('close').onclick=()=>{
 $('q').oninput=render;
 $('province').onchange=render;
 $('city').onchange=render;
+
+
+// نمایش بزرگ تصاویر آگهی و جابه‌جایی در پنجرهٔ مستقل
+let viewerImages=[];
+let viewerIndex=0;
+function renderViewerImage(){
+  if(!viewerImages.length)return;
+  viewerIndex=(viewerIndex+viewerImages.length)%viewerImages.length;
+  $('imageViewerImage').src=viewerImages[viewerIndex];
+  $('imageViewerCount').textContent=`${viewerIndex+1} / ${viewerImages.length}`;
+  $('imageViewerPrev').style.display=viewerImages.length>1?'flex':'none';
+  $('imageViewerNext').style.display=viewerImages.length>1?'flex':'none';
+}
+function openImageViewer(img){
+  const adId=img.closest("[data-carousel]")?.dataset.carousel;
+  if(adId) countAdVisit(adId);
+  try{viewerImages=JSON.parse(img.dataset.images||'[]')}catch(_){viewerImages=[]}
+  if(!viewerImages.length && img.src)viewerImages=[img.src];
+  viewerIndex=parseInt(img.dataset.index||'0',10)||0;
+  renderViewerImage();
+  $('imageViewer').classList.add('show');
+  document.body.style.overflow='hidden';
+}
+function closeImageViewer(){
+  $('imageViewer').classList.remove('show');
+  document.body.style.overflow='';
+}
+$('imageViewerClose').addEventListener('click',closeImageViewer);
+$('imageViewerPrev').addEventListener('click',()=>{viewerIndex--;renderViewerImage()});
+$('imageViewerNext').addEventListener('click',()=>{viewerIndex++;renderViewerImage()});
+$('imageViewer').addEventListener('click',e=>{if(e.target===$('imageViewer'))closeImageViewer()});
+$('imageViewerImage').addEventListener('click',e=>e.stopPropagation());
+document.addEventListener('keydown',e=>{
+  if(!$('imageViewer').classList.contains('show'))return;
+  if(e.key==='Escape')closeImageViewer();
+  if(e.key==='ArrowLeft'){viewerIndex--;renderViewerImage()}
+  if(e.key==='ArrowRight'){viewerIndex++;renderViewerImage()}
+});
+$('ads').addEventListener('click',e=>{
+  const img=e.target.closest('.carousel-image');
+  if(img)openImageViewer(img);
+});
 
 // کنترل دستی تصاویر آلبوم با فلش‌های طرفین
 $('ads').addEventListener('click',e=>{
