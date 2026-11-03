@@ -34,6 +34,10 @@ header{
   gap:12px
 }
 .brand{font-size:22px;font-weight:800}
+.brand-lockup{display:flex;align-items:center;gap:11px;direction:ltr;min-width:0}
+.brand-copy{direction:rtl;min-width:0}
+.marketplace-logo{width:54px;height:54px;object-fit:cover;border-radius:10px;background:#ffffff30;display:none;flex:none;border:1px solid #ffffff66}
+.marketplace-logo.visible{display:block}
 .sub{font-size:12px;margin-top:7px}
 button,input,select,textarea{font:inherit}
 button{
@@ -112,6 +116,10 @@ input,select,textarea{
   height:100%;
   object-fit:cover
 }
+.photo{position:relative}
+.photo-dots{position:absolute;bottom:6px;left:0;right:0;display:flex;justify-content:center;gap:4px}
+.photo-dots i{width:6px;height:6px;border-radius:50%;background:#ffffff99}
+.photo-dots i.active{background:#fff}
 .adbody{padding:12px}
 .ad h3{font-size:15px;margin:0 0 8px}
 .price{font-weight:bold;color:#087e69}
@@ -233,9 +241,12 @@ input,select,textarea{
 <header>
   <div class="wrap">
     <div class="top">
-      <div>
-        <div class="brand">بازارچهٔ ایتا</div>
-        <div class="sub">آگهی‌های محلی؛ سریع، ساده و دسته‌بندی‌شده</div>
+      <div class="brand-lockup">
+        <img class="marketplace-logo" id="marketplaceLogo" alt="تصویر بازارچه">
+        <div class="brand-copy">
+          <div class="brand" id="marketplaceBrand">بازارچهٔ ایتا</div>
+          <div class="sub">آگهی‌های محلی؛ سریع، ساده و دسته‌بندی‌شده</div>
+        </div>
       </div>
       <button class="ghost" id="addTop">＋ ثبت آگهی</button>
     </div>
@@ -269,7 +280,22 @@ input,select,textarea{
 <div class="grid" id="ads"></div>
 
 <section class="adminbox hidden" id="adminBox">
-  <h3>پنل مدیریت آگهی‌ها</h3>
+  <h3>تنظیمات بازارچه</h3>
+  <label for="marketplaceTitleInput">عنوان بازارچه</label>
+  <input id="marketplaceTitleInput" maxlength="60" placeholder="عنوان بازارچه">
+  <label for="marketplaceLogoInput">تصویر کنار عنوان بازارچه (اختیاری)</label>
+  <input id="marketplaceLogoInput" type="file" accept="image/*">
+  <div class="small">تصویر انتخابی در سمت چپ عنوان نمایش داده می‌شود. برای حذف تصویر فعلی، گزینهٔ «حذف تصویر» را فعال کنید.</div>
+  <label style="display:flex;align-items:center;gap:8px;margin:4px 0 10px">
+    <input id="removeMarketplaceLogo" type="checkbox" style="width:auto;margin:0"> حذف تصویر فعلی
+  </label>
+  <button class="primary" id="saveMarketplaceTitle" type="button">ذخیره عنوان و تصویر</button>
+  <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+  <h3>اولویت‌بندی آگهی‌ها</h3>
+  <div class="small">آگهی‌های پین‌شده در ابتدای فهرست عمومی نمایش داده می‌شوند. ترتیب پین‌شدن حفظ می‌شود.</div>
+  <div id="priorityAds"></div>
+  <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+  <h3>آگهی‌های در انتظار تأیید</h3>
   <div id="pending"></div>
 </section>
 
@@ -394,6 +420,9 @@ let cats=[];
 let selected='همه';
 let editingId=null;
 let authListenerRegistered=false;
+let marketplaceTitle='بازارچهٔ ایتا';
+let marketplaceLogoPath='';
+const carouselTimers=new Map();
 
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({
   '&':'&amp;',
@@ -449,6 +478,7 @@ async function init(){
     }
 
     await refreshAuth();
+    await loadMarketplaceSettings();
     await loadCats();
     await loadAds();
 
@@ -500,8 +530,75 @@ async function refreshAuth(){
 
   if(isAdmin){
     await loadPending();
+    await loadPriorityAds();
   }
 }
+
+// دریافت و ذخیره عنوان عمومی بازارچه
+async function loadMarketplaceSettings(){
+  const {data,error}=await client.from('marketplace_settings')
+    .select('key,value').in('key',['marketplace_title','marketplace_logo']);
+  if(!error && data){
+    const titleRow=data.find(x=>x.key==='marketplace_title');
+    const logoRow=data.find(x=>x.key==='marketplace_logo');
+    if(titleRow?.value) marketplaceTitle=titleRow.value;
+    marketplaceLogoPath=logoRow?.value||'';
+  }
+  $('marketplaceBrand').textContent=marketplaceTitle;
+  if($('marketplaceTitleInput')) $('marketplaceTitleInput').value=marketplaceTitle;
+  await refreshMarketplaceLogo();
+}
+
+async function refreshMarketplaceLogo(){
+  const img=$('marketplaceLogo');
+  if(!img) return;
+  if(!marketplaceLogoPath){
+    img.removeAttribute('src');
+    img.classList.remove('visible');
+    return;
+  }
+  const url=await imageUrl(marketplaceLogoPath);
+  if(url){img.src=url;img.classList.add('visible');}
+  else img.classList.remove('visible');
+}
+
+$('saveMarketplaceTitle').onclick=async()=>{
+  if(!isAdmin) return msg('فقط مدیر می‌تواند تنظیمات بازارچه را تغییر دهد.');
+  const value=$('marketplaceTitleInput').value.trim();
+  if(!value) return msg('عنوان بازارچه را وارد کنید.');
+  const button=$('saveMarketplaceTitle');
+  button.disabled=true;
+  try{
+    const file=$('marketplaceLogoInput').files[0];
+    if(file){
+      if(!file.type.startsWith('image/')) throw new Error('فقط فایل تصویری انتخاب کنید.');
+      if(file.size>5*1024*1024) throw new Error('حجم تصویر باید کمتر از ۵ مگابایت باشد.');
+      const ext=(file.name.split('.').pop()||'jpg').replace(/[^a-zA-Z0-9]/g,'').toLowerCase()||'jpg';
+      const path=`marketplace/${crypto.randomUUID()}.${ext}`;
+      const {error:uploadError}=await client.storage.from('ad-images').upload(path,file,{upsert:false});
+      if(uploadError) throw uploadError;
+      marketplaceLogoPath=path;
+    }else if($('removeMarketplaceLogo').checked){
+      marketplaceLogoPath='';
+    }
+    const rows=[
+      {key:'marketplace_title',value,updated_at:new Date().toISOString()},
+      {key:'marketplace_logo',value:marketplaceLogoPath,updated_at:new Date().toISOString()}
+    ];
+    const {error}=await client.from('marketplace_settings').upsert(rows,{onConflict:'key'});
+    if(error) throw error;
+    marketplaceTitle=value;
+    $('marketplaceBrand').textContent=value;
+    $('marketplaceLogoInput').value='';
+    $('removeMarketplaceLogo').checked=false;
+    await refreshMarketplaceLogo();
+    msg('عنوان و تصویر بازارچه ذخیره شد.');
+  }catch(err){
+    msg('ذخیره تنظیمات انجام نشد: '+err.message);
+  }finally{
+    button.disabled=false;
+  }
+};
 
 // دریافت دسته‌بندی‌ها
 async function loadCats(){
@@ -556,6 +653,16 @@ async function loadAds(){
   }
 
   ads=data||[];
+  ads.sort((a,b)=>{
+    const ap=a.is_pinned===true?1:0, bp=b.is_pinned===true?1:0;
+    if(ap!==bp)return bp-ap;
+    if(ap && bp){
+      const at=Date.parse(a.pinned_at||a.created_at||0);
+      const bt=Date.parse(b.pinned_at||b.created_at||0);
+      if(at!==bt)return at-bt;
+    }
+    return Date.parse(b.created_at||0)-Date.parse(a.created_at||0);
+  });
   await render();
 }
 
@@ -602,7 +709,8 @@ async function render(){
 
   const cards=await Promise.all(filtered.map(async a=>{
 
-    const url=await imageUrl(a.image_urls?.[0]);
+    const imagePaths=Array.isArray(a.image_urls)?a.image_urls.filter(Boolean):[];
+    const urls=(await Promise.all(imagePaths.map(imageUrl))).filter(Boolean);
 
     const own=a.user_id===currentUser?.id;
     const mapAllowed=validMapUrl(a.map_link||'');
@@ -610,9 +718,10 @@ async function render(){
     return `
       <article class="ad">
 
-        <div class="photo">
-          ${url
-            ?`<img src="${esc(url)}" alt="">`
+        <div class="photo" data-carousel="${esc(a.id)}">
+          ${urls.length
+            ?`<img class="carousel-image" src="${esc(urls[0])}" alt="" data-images="${esc(JSON.stringify(urls))}" data-index="0">
+              ${urls.length>1?`<span class="photo-dots">${urls.map((_,i)=>`<i class="${i===0?'active':''}"></i>`).join('')}</span>`:''}`
             :'تصویر آگهی'
           }
         </div>
@@ -695,8 +804,25 @@ async function render(){
     `;
   }));
 
+  for(const timer of carouselTimers.values()) clearInterval(timer);
+  carouselTimers.clear();
+
   $('ads').innerHTML=cards.join('')||
     '<div class="authbox">آگهی تأییدشده‌ای برای نمایش وجود ندارد.</div>';
+
+  document.querySelectorAll('.carousel-image').forEach(img=>{
+    const images=JSON.parse(img.dataset.images||'[]');
+    if(images.length<2) return;
+    let index=0;
+    const id=img.closest('[data-carousel]').dataset.carousel;
+    const timer=setInterval(()=>{
+      index=(index+1)%images.length;
+      img.src=images[index];
+      img.dataset.index=String(index);
+      img.parentElement.querySelectorAll('.photo-dots i').forEach((dot,i)=>dot.classList.toggle('active',i===index));
+    },4000);
+    carouselTimers.set(id,timer);
+  });
 
   const provinces=[
     ...new Set(
@@ -881,6 +1007,42 @@ window.rejectAd=async id=>{
 
   await loadAds();
   await loadPending();
+};
+
+// فهرست اولویت‌بندی آگهی‌ها در پنل مدیر
+async function loadPriorityAds(){
+  if(!isAdmin)return;
+  const box=$('priorityAds');
+  const list=[...ads].sort((a,b)=>{
+    const ap=a.is_pinned===true?1:0, bp=b.is_pinned===true?1:0;
+    if(ap!==bp)return bp-ap;
+    return Date.parse(b.created_at||0)-Date.parse(a.created_at||0);
+  });
+  box.innerHTML=list.map(a=>`<div class="authbox">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <b>${esc(a.title)}</b>
+      <button class="${a.is_pinned===true?'danger':'light'}" type="button"
+        data-action="toggle-pin" data-id="${esc(a.id)}">
+        ${a.is_pinned===true?'برداشتن پین':'📌 پین کردن'}
+      </button>
+    </div>
+    <div class="small">${esc(a.status==='approved'?'تأییدشده':a.status==='pending'?'در انتظار تأیید':'ردشده')}</div>
+  </div>`).join('')||'هنوز آگهی‌ای ثبت نشده است.';
+}
+
+window.togglePinAd=async id=>{
+  if(!isAdmin)return msg('دسترسی مدیر لازم است.');
+  const a=ads.find(x=>String(x.id)===String(id));
+  if(!a)return;
+  const pin=a.is_pinned!==true;
+  const update=pin
+    ?{is_pinned:true,pinned_at:new Date().toISOString()}
+    :{is_pinned:false,pinned_at:null};
+  const {error}=await client.from('ads').update(update).eq('id',id);
+  if(error){msg('خطا در تغییر اولویت آگهی: '+error.message);return;}
+  await loadAds();
+  await loadPriorityAds();
+  msg(pin?'آگهی پین شد و به ابتدای فهرست منتقل شد.':'پین آگهی برداشته شد.');
 };
 
 // دریافت آگهی‌های در انتظار تأیید
@@ -1202,6 +1364,11 @@ $('pending').addEventListener('click',e=>{
 
   if(action==='approve')window.approveAd(id);
   if(action==='reject')window.rejectAd(id);
+});
+
+$('priorityAds').addEventListener('click',e=>{
+  const btn=e.target.closest('[data-action="toggle-pin"]');
+  if(btn)window.togglePinAd(btn.dataset.id);
 });
 
 // اجرای برنامه
