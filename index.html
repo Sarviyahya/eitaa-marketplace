@@ -266,6 +266,14 @@ input,select,textarea{
 .image-viewer-count{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);color:white;background:#0008;padding:6px 12px;border-radius:20px;font-size:13px}
 .carousel-image{cursor:zoom-in}
 @media(max-width:600px){.image-viewer{padding:8px}.image-viewer-content{height:90vh}.image-viewer-btn{width:42px;height:42px}.image-viewer-prev{left:4px}.image-viewer-next{right:4px}}
+.ad-description-preview {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
 
 </style>
 </head>
@@ -975,7 +983,9 @@ async function render(){
 
             <br>
 
-            ${esc(a.description||'')}
+            <div class="ad-description-preview">
+  ${esc(a.description||'')}
+</div>
 
             <br>
 
