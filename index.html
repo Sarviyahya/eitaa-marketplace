@@ -995,7 +995,15 @@ async function render(){
           </div>
 
           ${(a.ad_handle||a.contact||mapAllowed)?`<div class="contact-links" aria-label="راه‌های ارتباطی">
-            ${a.contact?`<a class="contact-icon" title="تماس" aria-label="تماس" href="tel:${esc(normalizePhone(a.contact))}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h4l2 5-3 2a15 15 0 0 0 6 6l2-3 5 2v4c0 1-1 2-2 2C10 21 3 14 3 5c0-1 1-2 2-2Z"/></svg></a><a class="contact-icon" title="پیامک" aria-label="پیامک" href="sms:${esc(normalizePhone(a.contact))}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v12H9l-5 4V5Z"/><path d="M8 10h8M8 13h5"/></svg></a>`:''}
+            ${a.contact?`<a class="contact-icon" title="تماس" aria-label="تماس" href="tel:${esc(normalizePhone(a.contact))}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h4l2 5-3 2a15 15 0 0 0 6 6l2-3 5 2v4c0 1-1 2-2 2C10 21 3 14 3 5c0-1 1-2 2-2Z"/></svg></a><a class="contact-icon"
+   title="ارسال پیامک"
+   aria-label="ارسال پیامک"
+   href="sms:${esc(normalizePhone(a.contact))}?body=${encodeURIComponent(`سلام، درباره آگهی «${a.title}» پیام می‌دهم.`)}">
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M4 5h16v12H9l-5 4V5Z"/>
+    <path d="M8 10h8M8 13h5"/>
+  </svg>
+</a>`:''}
             ${a.ad_handle?`<a class="contact-icon platform-contact" title="گفت‌وگو در ${esc(platformLabel(a.ad_platform))}" aria-label="گفت‌وگو در ${esc(platformLabel(a.ad_platform))}" target="_blank" rel="noopener noreferrer" href="${esc(platformUrl(a.ad_platform,a.ad_handle))}">${platformLogoSvg(a.ad_platform)}</a>`:''}
             ${mapAllowed?`<a class="contact-icon" title="نقشه" aria-label="نقشه" href="${esc(a.map_link)}" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"/><path d="M9 3v15m6-12v15"/></svg></a>`:''}
           </div>`:''}
