@@ -329,23 +329,6 @@ input,select,textarea{
   <div class="small">زمان پیش‌فرض ۴ ثانیه است؛ مقدار دلخواه بین ۱ تا ۶۰ ثانیه انتخاب کنید.</div>
   <button class="primary" id="saveMarketplaceTitle" type="button">ذخیره تنظیمات بازارچه</button>
   <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
-  <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
-  <h3>پاک‌سازی آگهی‌های قدیمی</h3>
-  <label for="deleteOlderThan">حذف آگهی‌های قدیمی‌تر از</label>
-  <div class="row" style="align-items:center;gap:8px">
-    <select id="deleteOlderThan" style="flex:1">
-      <option value="30">۳۰ روز</option>
-      <option value="60">۶۰ روز</option>
-      <option value="90" selected>۹۰ روز</option>
-      <option value="180">۱۸۰ روز</option>
-      <option value="365">یک سال</option>
-    </select>
-    <button class="primary" id="previewOldAds" type="button">نمایش آگهی‌های مشمول</button>
-  </div>
-  <div class="small">ابتدا فهرست آگهی‌های مشمول را ببینید. هنگام حذف، تصاویر هر آگهی نیز از فضای ذخیره‌سازی پاک می‌شوند.</div>
-  <div id="oldAdsPreview" class="small" style="margin-top:10px"></div>
-  <button class="danger hidden" id="confirmDeleteOldAds" type="button" style="margin-top:10px">تأیید حذف آگهی‌ها و تصاویر</button>
-  <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
   <h3>آگهی‌های در انتظار تأیید</h3>
   <div id="pending"></div>
 </section>
@@ -464,7 +447,6 @@ input,select,textarea{
         <label class="full">
           تصاویر
           <input id="images" type="file" accept="image/*" multiple>
-          <div class="small">حداکثر ۵ تصویر برای هر آگهی؛ مجموع حجم همهٔ تصاویر حداکثر ۵ مگابایت.</div>
         </label>
 
       </div>
@@ -573,18 +555,6 @@ function markSession(key){
   try{sessionStorage.setItem(key,'1');}catch{}
 }
 function formatCount(n){return Number(n||0).toLocaleString('fa-IR');}
-function relativeAdDate(value){
-  if(!value)return '';
-  const d=new Date(value);
-  if(Number.isNaN(d.getTime()))return '';
-  const now=new Date();
-  const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
-  const day=new Date(d.getFullYear(),d.getMonth(),d.getDate());
-  const days=Math.max(0,Math.floor((today-day)/86400000));
-  if(days===0)return 'امروز';
-  if(days===1)return 'دیروز';
-  return `${formatCount(days)} روز پیش`;
-}
 function showSiteViews(){
   const el=$('siteViews');
   if(el) el.textContent=formatCount(siteViewCount)+' بازدید';
@@ -987,7 +957,7 @@ async function render(){
           </div>
 
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:5px">
-            <span class="small">${esc(a.categories?.name||'')}${a.created_at?` · ${esc(relativeAdDate(a.created_at))}`:''}</span>
+            <span class="small">${esc(a.categories?.name||'')}</span>
             <span class="ad-views" title="بازدیدهای این آگهی">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
               <span data-ad-views="${esc(a.id)}">${formatCount(adViewCounts[String(a.id)]||0)}</span>
@@ -1255,46 +1225,6 @@ window.togglePinAd=async id=>{
 };
 
 
-// پاک‌سازی امن آگهی‌های قدیمی و تصاویر آن‌ها از طریق Edge Function
-let oldAdsPreviewToken=null;
-async function previewOldAds(){
-  if(!isAdmin)return msg('دسترسی مدیر لازم است.');
-  const days=Math.max(1,Number($('deleteOlderThan').value)||90);
-  const button=$('previewOldAds');
-  button.disabled=true;
-  $('confirmDeleteOldAds').classList.add('hidden');
-  $('oldAdsPreview').textContent='در حال بررسی آگهی‌های مشمول...';
-  try{
-    const {data,error}=await client.functions.invoke('cleanup-old-ads',{body:{action:'preview',days}});
-    if(error)throw error;
-    oldAdsPreviewToken={days,ids:(data.ads||[]).map(a=>a.id)};
-    if(!oldAdsPreviewToken.ids.length){$('oldAdsPreview').textContent='آگهی قدیمی‌تری با این شرط پیدا نشد.';return;}
-    const list=(data.ads||[]).map(a=>`<div style="padding:8px;border-bottom:1px solid var(--line)"><b>${esc(a.title||'بدون عنوان')}</b><div class="small">شناسه: ${esc(String(a.id))} · تاریخ: ${esc(relativeAdDate(a.created_at))} · ${formatCount(a.image_count||0)} تصویر</div></div>`).join('');
-    $('oldAdsPreview').innerHTML=`<b>${formatCount(oldAdsPreviewToken.ids.length)} آگهی قدیمی‌تر از ${formatCount(days)} روز پیدا شد:</b><div style="max-height:240px;overflow:auto;border:1px solid var(--line);border-radius:10px;margin-top:8px">${list}</div><p>با تأیید، ابتدا تصاویر و سپس اطلاعات آگهی‌ها حذف می‌شوند. اگر حذف تصویر ناموفق باشد، آگهی مربوطه حذف نخواهد شد.</p>`;
-    $('confirmDeleteOldAds').classList.remove('hidden');
-  }catch(err){
-    $('oldAdsPreview').textContent='خطا در دریافت فهرست: '+(err.message||String(err));
-  }finally{button.disabled=false;}
-}
-async function confirmDeleteOldAds(){
-  if(!isAdmin||!oldAdsPreviewToken?.ids?.length)return msg('ابتدا فهرست آگهی‌ها را بررسی کنید.');
-  if(!confirm(`${formatCount(oldAdsPreviewToken.ids.length)} آگهی و تصاویر مربوط به آن‌ها حذف شوند؟ این عملیات برگشت‌پذیر نیست.`))return;
-  const button=$('confirmDeleteOldAds');button.disabled=true;
-  try{
-    const {data,error}=await client.functions.invoke('cleanup-old-ads',{body:{action:'delete',days:oldAdsPreviewToken.days,ids:oldAdsPreviewToken.ids}});
-    if(error)throw error;
-    oldAdsPreviewToken=null;
-    $('confirmDeleteOldAds').classList.add('hidden');
-    $('oldAdsPreview').textContent=`عملیات پایان یافت؛ ${formatCount(data.deleted_ads||0)} آگهی و ${formatCount(data.deleted_images||0)} تصویر حذف شد. ${data.failed_ads?.length?formatCount(data.failed_ads.length)+' آگهی به‌دلیل خطا حذف نشد.':''}`;
-    if(data.failed_ads?.length){$('oldAdsPreview').innerHTML+='<div style="color:#b42318;margin-top:8px">'+data.failed_ads.map(x=>`<div>${esc(String(x.id))}: ${esc(x.error)}</div>`).join('')+'</div>';}
-    await loadAds();await loadPending();
-  }catch(err){msg('خطا در پاک‌سازی: '+(err.message||String(err)));}
-  finally{button.disabled=false;}
-}
-$('previewOldAds').addEventListener('click',previewOldAds);
-$('confirmDeleteOldAds').addEventListener('click',confirmDeleteOldAds);
-$('deleteOlderThan').addEventListener('change',()=>{oldAdsPreviewToken=null;$('oldAdsPreview').textContent='برای شرط جدید، دوباره فهرست را نمایش دهید.';$('confirmDeleteOldAds').classList.add('hidden');});
-
 // دریافت آگهی‌های در انتظار تأیید
 async function loadPending(){
 
@@ -1477,31 +1407,6 @@ $('adForm').onsubmit=async e=>{
 
   const files=[...$('images').files];
 
-  // محدودیت تعداد تصاویر و حجم مجموع (شامل تصاویر قبلی آگهی)
-  const oldPaths=oldAd&&Array.isArray(oldAd.image_urls)?oldAd.image_urls.filter(Boolean):[];
-  if(oldPaths.length+files.length>5){
-    return msg(`حداکثر ۵ تصویر برای هر آگهی مجاز است. اکنون ${oldPaths.length} تصویر قبلی دارید.`);
-  }
-  for(const f of files){
-    if(!f.type.startsWith('image/'))return msg('فقط فایل تصویری مجاز است.');
-  }
-  let totalImageBytes=files.reduce((sum,f)=>sum+f.size,0);
-  if(oldPaths.length){
-    try{
-      const oldUrls=await Promise.all(oldPaths.map(imageUrl));
-      for(const url of oldUrls.filter(Boolean)){
-        const response=await fetch(url);
-        if(!response.ok)throw new Error('خواندن حجم تصاویر قبلی ممکن نشد.');
-        totalImageBytes+=(await response.blob()).size;
-      }
-    }catch(err){
-      if(files.length)return msg('برای افزودن تصویر، حجم تصاویر قبلی قابل بررسی نیست. لطفاً بعداً دوباره تلاش کنید.');
-    }
-  }
-  if(totalImageBytes>5*1024*1024){
-    return msg('حجم مجموع تصاویر هر آگهی نباید بیشتر از ۵ مگابایت باشد.');
-  }
-
   // حفظ تصاویر قبلی هنگام افزودن تصویر تازه
   let paths=oldAd&&Array.isArray(oldAd.image_urls)
     ?[...oldAd.image_urls]
@@ -1515,6 +1420,10 @@ $('adForm').onsubmit=async e=>{
 
       if(!f.type.startsWith('image/')){
         throw new Error('فقط فایل تصویری مجاز است.');
+      }
+
+      if(f.size>5*1024*1024){
+        throw new Error('حجم هر تصویر باید کمتر از ۵ مگابایت باشد.');
       }
 
       const safe=f.name.replace(/[^a-zA-Z0-9._-]/g,'_');
@@ -1601,7 +1510,6 @@ document.addEventListener('keydown',e=>{
 });
 
 $('addTop').onclick=openForm;
-$('deleteOldAds').onclick=deleteOldAds;
 
 $('close').onclick=()=>{
   $('modal').classList.remove('show');
@@ -1613,20 +1521,6 @@ $('cancelAd').onclick=()=>{
 $('q').oninput=render;
 $('province').onchange=render;
 $('city').onchange=render;
-$('images').addEventListener('change',()=>{
-  const chosen=[...$('images').files];
-  const existing=editingId?((ads.find(a=>String(a.id)===String(editingId))?.image_urls||[]).length):0;
-  if(existing+chosen.length>5){
-    $('images').value='';
-    msg(`حداکثر ۵ تصویر مجاز است؛ این آگهی ${existing} تصویر قبلی دارد.`);
-    return;
-  }
-  const bytes=chosen.reduce((n,f)=>n+f.size,0);
-  if(bytes>5*1024*1024){
-    $('images').value='';
-    msg('حجم مجموع تصاویر انتخاب‌شده نباید بیشتر از ۵ مگابایت باشد.');
-  }
-});
 
 
 // نمایش بزرگ تصاویر آگهی و جابه‌جایی در پنجرهٔ مستقل
