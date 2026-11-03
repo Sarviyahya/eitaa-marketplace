@@ -36,7 +36,7 @@ header{
 .brand{font-size:22px;font-weight:800}
 .brand-lockup{display:flex;align-items:center;gap:11px;direction:ltr;min-width:0}
 .brand-copy{direction:rtl;min-width:0}
-.marketplace-logo{width:54px;height:54px;object-fit:cover;border-radius:10px;background:#ffffff30;display:none;flex:none;border:1px solid #ffffff66}
+.marketplace-logo{width:80px;height:80px;object-fit:contain;border-radius:12px;background:#ffffff30;display:none;flex:none;border:1px solid #ffffff66}
 .marketplace-logo.visible{display:block}
 .sub{font-size:12px;margin-top:7px}
 button,input,select,textarea{font:inherit}
@@ -180,6 +180,7 @@ input,select,textarea{
   overflow:auto
 }
 @media(max-width:430px){
+  .marketplace-logo{width:60px;height:60px;border-radius:10px}
   .grid{grid-template-columns:1fr 1fr}
   .fields,.searchbox{grid-template-columns:1fr}
   .full,.searchbox input{grid-column:auto}
@@ -290,10 +291,6 @@ input,select,textarea{
     <input id="removeMarketplaceLogo" type="checkbox" style="width:auto;margin:0"> حذف تصویر فعلی
   </label>
   <button class="primary" id="saveMarketplaceTitle" type="button">ذخیره عنوان و تصویر</button>
-  <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
-  <h3>اولویت‌بندی آگهی‌ها</h3>
-  <div class="small">آگهی‌های پین‌شده در ابتدای فهرست عمومی نمایش داده می‌شوند. ترتیب پین‌شدن حفظ می‌شود.</div>
-  <div id="priorityAds"></div>
   <hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
   <h3>آگهی‌های در انتظار تأیید</h3>
   <div id="pending"></div>
@@ -530,7 +527,6 @@ async function refreshAuth(){
 
   if(isAdmin){
     await loadPending();
-    await loadPriorityAds();
   }
 }
 
@@ -771,6 +767,16 @@ async function render(){
               جزئیات
             </button>
 
+            ${isAdmin
+              ?`<button class="${a.is_pinned===true?'danger':'light'}"
+                  data-action="toggle-pin"
+                  data-id="${esc(a.id)}"
+                  type="button">
+                  ${a.is_pinned===true?'📌 برداشتن پین':'📌 پین کردن'}
+                </button>`
+              :''
+            }
+
             ${mapAllowed
               ?`<a class="light"
                 href="${esc(a.map_link)}"
@@ -1009,27 +1015,6 @@ window.rejectAd=async id=>{
   await loadPending();
 };
 
-// فهرست اولویت‌بندی آگهی‌ها در پنل مدیر
-async function loadPriorityAds(){
-  if(!isAdmin)return;
-  const box=$('priorityAds');
-  const list=[...ads].sort((a,b)=>{
-    const ap=a.is_pinned===true?1:0, bp=b.is_pinned===true?1:0;
-    if(ap!==bp)return bp-ap;
-    return Date.parse(b.created_at||0)-Date.parse(a.created_at||0);
-  });
-  box.innerHTML=list.map(a=>`<div class="authbox">
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-      <b>${esc(a.title)}</b>
-      <button class="${a.is_pinned===true?'danger':'light'}" type="button"
-        data-action="toggle-pin" data-id="${esc(a.id)}">
-        ${a.is_pinned===true?'برداشتن پین':'📌 پین کردن'}
-      </button>
-    </div>
-    <div class="small">${esc(a.status==='approved'?'تأییدشده':a.status==='pending'?'در انتظار تأیید':'ردشده')}</div>
-  </div>`).join('')||'هنوز آگهی‌ای ثبت نشده است.';
-}
-
 window.togglePinAd=async id=>{
   if(!isAdmin)return msg('دسترسی مدیر لازم است.');
   const a=ads.find(x=>String(x.id)===String(id));
@@ -1041,9 +1026,9 @@ window.togglePinAd=async id=>{
   const {error}=await client.from('ads').update(update).eq('id',id);
   if(error){msg('خطا در تغییر اولویت آگهی: '+error.message);return;}
   await loadAds();
-  await loadPriorityAds();
   msg(pin?'آگهی پین شد و به ابتدای فهرست منتقل شد.':'پین آگهی برداشته شد.');
 };
+
 
 // دریافت آگهی‌های در انتظار تأیید
 async function loadPending(){
@@ -1348,6 +1333,7 @@ $('ads').addEventListener('click',e=>{
   const action=btn.dataset.action;
 
   if(action==='details')window.details(id);
+  if(action==='toggle-pin')window.togglePinAd(id);
   if(action==='edit')window.editAd(id);
   if(action==='delete')window.deleteAd(id);
 });
@@ -1366,10 +1352,6 @@ $('pending').addEventListener('click',e=>{
   if(action==='reject')window.rejectAd(id);
 });
 
-$('priorityAds').addEventListener('click',e=>{
-  const btn=e.target.closest('[data-action="toggle-pin"]');
-  if(btn)window.togglePinAd(btn.dataset.id);
-});
 
 // اجرای برنامه
 init();
