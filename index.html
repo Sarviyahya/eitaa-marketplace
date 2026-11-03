@@ -600,6 +600,7 @@ $('saveMarketplaceTitle').onclick=async()=>{
     if(error) throw error;
     marketplaceTitle=value;
     slideshowSeconds=seconds;
+    restartCarouselTimers();
     $('marketplaceBrand').textContent=value;
     $('marketplaceLogoInput').value='';
     $('removeMarketplaceLogo').checked=false;
@@ -703,6 +704,20 @@ function changeCarouselImage(img,step){
   img.src=images[index];
   img.dataset.index=String(index);
   img.parentElement.querySelectorAll('.photo-dots i').forEach((dot,i)=>dot.classList.toggle('active',i===index));
+}
+
+// راه‌اندازی مجدد زمان‌سنج آلبوم‌ها پس از تغییر تنظیم زمان
+function restartCarouselTimers(){
+  for(const timer of carouselTimers.values()) clearInterval(timer);
+  carouselTimers.clear();
+  document.querySelectorAll('.carousel-image').forEach(img=>{
+    const images=JSON.parse(img.dataset.images||'[]');
+    if(images.length<2) return;
+    const id=img.closest('[data-carousel]')?.dataset.carousel;
+    if(!id) return;
+    const timer=setInterval(()=>changeCarouselImage(img,1),slideshowSeconds*1000);
+    carouselTimers.set(id,timer);
+  });
 }
 
 async function render(){
@@ -843,13 +858,7 @@ async function render(){
   $('ads').innerHTML=cards.join('')||
     '<div class="authbox">آگهی تأییدشده‌ای برای نمایش وجود ندارد.</div>';
 
-  document.querySelectorAll('.carousel-image').forEach(img=>{
-    const images=JSON.parse(img.dataset.images||'[]');
-    if(images.length<2) return;
-    const id=img.closest('[data-carousel]').dataset.carousel;
-    const timer=setInterval(()=>changeCarouselImage(img,1),slideshowSeconds*1000);
-    carouselTimers.set(id,timer);
-  });
+  restartCarouselTimers();
 
   const provinces=[
     ...new Set(
