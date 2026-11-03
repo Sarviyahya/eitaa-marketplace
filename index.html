@@ -781,7 +781,12 @@ async function loadCats(){
     return;
   }
 
-  cats=data||[];
+  cats=(data||[]).sort((a,b)=>{
+    const aOther=a.name?.trim()==='سایر';
+    const bOther=b.name?.trim()==='سایر';
+    if(aOther!==bOther) return aOther?1:-1;
+    return a.name.localeCompare(b.name,'fa');
+  });
 
   $('category').innerHTML=cats.map(c=>
     `<option value="${c.id}">${esc(c.name)}</option>`
