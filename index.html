@@ -1188,6 +1188,16 @@ window.deleteAd = async id => {
 
     // ابتدا حذف تصاویر از Storage
     if (imagePaths.length) {
+      const { data: authData, error: authError } =
+  await client.auth.getUser();
+
+console.log('Storage delete diagnostic:', {
+  authUserId: authData?.user?.id,
+  authError: authError?.message,
+  expectedUserId: a.user_id,
+  imagePaths: imagePaths
+});
+      
       const { error: storageError } = await client
         .storage
         .from('ad-images')
