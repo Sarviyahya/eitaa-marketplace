@@ -176,6 +176,55 @@ input,select,textarea{
   .fields,.searchbox{grid-template-columns:1fr}
   .full,.searchbox input{grid-column:auto}
 }
+
+/* ورود مدیر: آیکن کوچک و پنجرهٔ جداگانه */
+.admin-login-icon{
+  position:fixed;
+  left:12px;
+  bottom:12px;
+  width:40px;
+  height:40px;
+  padding:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:50%;
+  background:#fff;
+  color:#087e69;
+  border:1px solid var(--line);
+  box-shadow:0 2px 10px #0002;
+  font-size:19px;
+  z-index:20;
+}
+.admin-login-icon:focus-visible{
+  outline:2px solid var(--brand);
+  outline-offset:3px;
+}
+#adminLoginModal{
+  position:fixed;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:16px;
+  background:#0c1c25a6;
+  z-index:30;
+}
+#adminLoginModal.show{display:flex}
+#adminLoginModal .panel{
+  width:min(380px,100%);
+  max-height:90vh;
+  overflow:auto;
+}
+.admin-login-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:12px;
+}
+.admin-login-head h3{margin:0}
+
 </style>
 </head>
 
@@ -194,17 +243,6 @@ input,select,textarea{
 </header>
 
 <main class="wrap">
-
-<section class="authbox" id="authBox">
-  <b>ورود مدیران</b>
-  <div class="row">
-    <input id="email" type="email" placeholder="ایمیل مدیر">
-    <input id="password" type="password" placeholder="گذرواژه">
-  </div>
-  <div class="row">
-    <button class="primary" id="signIn">ورود مدیر</button>
-  </div>
-</section>
 
 <section class="authbox hidden" id="userBox">
   <span id="who"></span>
@@ -236,6 +274,26 @@ input,select,textarea{
 </section>
 
 </main>
+
+<button id="adminLoginIcon" class="admin-login-icon"
+        type="button" aria-label="ورود مدیر" title="ورود مدیر">🔐</button>
+
+<div id="adminLoginModal" role="dialog" aria-modal="true"
+     aria-labelledby="adminLoginTitle">
+  <div class="panel">
+    <div class="admin-login-head">
+      <h3 id="adminLoginTitle">ورود مدیر</h3>
+      <button id="closeAdminLogin" class="light" type="button">بستن ×</button>
+    </div>
+    <label for="email">ایمیل مدیر</label>
+    <input id="email" type="email" placeholder="ایمیل مدیر"
+           autocomplete="username">
+    <label for="password">گذرواژه</label>
+    <input id="password" type="password" placeholder="گذرواژه"
+           autocomplete="current-password">
+    <button class="primary" id="signIn" type="button">ورود مدیر</button>
+  </div>
+</div>
 
 <div class="modal" id="modal">
   <div class="panel">
@@ -415,7 +473,7 @@ async function init(){
 // بررسی مدیر یا کاربر عادی
 async function refreshAuth(){
 
-  $('authBox').classList.remove('hidden');
+  // فرم ورود مدیر فقط داخل پنجرهٔ جداگانه نمایش داده می‌شود.
 
   isAdmin=false;
 
@@ -429,7 +487,7 @@ async function refreshAuth(){
     isAdmin=!!data&&!error;
   }
 
-  $('userBox').classList.toggle('hidden',!currentUser);
+  $('userBox').classList.toggle('hidden',!isAdmin);
   $('signOut').classList.toggle('hidden',!isAdmin);
 
   $('who').textContent=isAdmin
@@ -903,6 +961,13 @@ $('signIn').onclick=async()=>{
     await refreshAuth();
     await loadAds();
 
+    if(isAdmin){
+      $('adminLoginModal').classList.remove('show');
+      $('adminBox').scrollIntoView({behavior:'smooth',block:'start'});
+    }else{
+      msg('این حساب دسترسی مدیر ندارد.');
+    }
+
   }finally{
     $('signIn').disabled=false;
   }
@@ -1075,6 +1140,31 @@ $('adForm').onsubmit=async e=>{
 };
 
 // رویدادهای صفحه
+$('adminLoginIcon').onclick=()=>{
+  if(isAdmin){
+    $('adminBox').scrollIntoView({behavior:'smooth',block:'start'});
+    return;
+  }
+  $('adminLoginModal').classList.add('show');
+  $('email').focus();
+};
+
+$('closeAdminLogin').onclick=()=>{
+  $('adminLoginModal').classList.remove('show');
+};
+
+$('adminLoginModal').addEventListener('click',e=>{
+  if(e.target.id==='adminLoginModal'){
+    $('adminLoginModal').classList.remove('show');
+  }
+});
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    $('adminLoginModal').classList.remove('show');
+  }
+});
+
 $('addTop').onclick=openForm;
 
 $('close').onclick=()=>{
