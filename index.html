@@ -382,8 +382,24 @@ input,select,textarea{
         </label>
 
         <label>
-          راه تماس
-          <input id="contact">
+          پیام‌رسان آیدی
+          <select id="adPlatform">
+            <option value="eitaa">ایتا</option>
+            <option value="bale">بله</option>
+            <option value="rubika">روبیکا</option>
+            <option value="telegram">تلگرام</option>
+            <option value="instagram">اینستاگرام</option>
+          </select>
+        </label>
+
+        <label>
+          آیدی در پیام‌رسان
+          <input id="adHandle" placeholder="مثلاً نام‌کاربری بدون @" dir="ltr">
+        </label>
+
+        <label class="full">
+          راه تماس (شماره تلفن)
+          <input id="contact" type="tel" inputmode="tel" placeholder="مثلاً 0912...">
         </label>
 
         <label>
@@ -466,6 +482,16 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({
   '"':'&quot;',
   "'":'&#39;'
 }[c]));
+
+function platformLabel(platform){
+  return ({eitaa:'ایتا',bale:'بله',rubika:'روبیکا',telegram:'تلگرام',instagram:'اینستاگرام'})[platform]||'ایتا';
+}
+function platformUrl(platform,handle){
+  const h=String(handle||'').trim().replace(/^@/,'').replace(/^\/+|\/+$/g,'');
+  const bases={eitaa:'https://eitaa.com/',bale:'https://ble.ir/',rubika:'https://rubika.ir/',telegram:'https://t.me/',instagram:'https://www.instagram.com/'};
+  return (bases[platform]||bases.eitaa)+encodeURIComponent(h);
+}
+function normalizePhone(phone){return String(phone||'').replace(/[^0-9+*#,;]/g,'');}
 
 function msg(t){
   alert(t);
@@ -877,6 +903,11 @@ async function render(){
             </span>
           </div>
 
+          ${(a.ad_handle||a.contact)?`<div class="contact-links" style="display:flex;flex-wrap:wrap;gap:7px;margin:10px 0">
+            ${a.ad_handle?`<a class="light" target="_blank" rel="noopener noreferrer" href="${platformUrl(a.ad_platform,a.ad_handle)}">گفت‌وگو در ${platformLabel(a.ad_platform)}</a>`:''}
+            ${a.contact?`<a class="light" href="tel:${esc(normalizePhone(a.contact))}">☎ تماس</a><a class="light" href="sms:${esc(normalizePhone(a.contact))}">✉ پیامک</a>`:''}
+          </div>`:''}
+
           <div class="actions">
 
             <button class="light"
@@ -1010,6 +1041,7 @@ function openForm(){
   editingId=null;
 
   $('adForm').reset();
+  $('adPlatform').value='eitaa';
   $('formTitle').textContent='ثبت آگهی جدید';
   $('modal').classList.add('show');
 }
@@ -1032,6 +1064,8 @@ window.editAd=id=>{
   $('description').value=a.description||'';
   $('price').value=a.price||'';
   $('contact').value=a.contact||'';
+  $('adPlatform').value=a.ad_platform||'eitaa';
+  $('adHandle').value=a.ad_handle||'';
   $('provinceInput').value=a.province||'';
   $('cityInput').value=a.city||'';
   $('district').value=a.district||'';
@@ -1302,6 +1336,8 @@ $('adForm').onsubmit=async e=>{
     description:$('description').value.trim(),
     price:$('price').value.trim()||null,
     contact:$('contact').value.trim()||null,
+    ad_platform:$('adPlatform').value||'eitaa',
+    ad_handle:$('adHandle').value.trim().replace(/^@/, '')||null,
     province:$('provinceInput').value.trim()||null,
     city:$('cityInput').value.trim()||null,
     district:$('district').value.trim()||null,
